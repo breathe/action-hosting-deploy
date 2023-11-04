@@ -78,45 +78,22 @@ async function execWithCredentials(
   const debug = opts.debug || false;
   const firebaseToolsVersion = opts.firebaseToolsVersion || "latest";
 
-  try {
-    await exec(
-      `npx firebase-tools@${firebaseToolsVersion}`,
-      [
-        ...args,
-        ...(projectId ? ["--project", projectId] : []),
-        debug
-          ? "--debug" // gives a more thorough error message
-          : "--json", // allows us to easily parse the output
-      ],
-      {
-        listeners: {
-          stdout(data: Buffer) {
-            deployOutputBuf.push(data);
-          },
+  await exec(
+    `npx firebase-tools@${firebaseToolsVersion}`,
+    [...args, ...(projectId ? ["--project", projectId] : []), "--json"],
+    {
+      listeners: {
+        stdout(data: Buffer) {
+          deployOutputBuf.push(data);
         },
-        env: {
-          ...process.env,
-          FIREBASE_DEPLOY_AGENT: "action-hosting-deploy",
-          GOOGLE_APPLICATION_CREDENTIALS: gacFilename, // the CLI will automatically authenticate with this env variable set
-        },
-      }
-    );
-  } catch (e) {
-    console.log(Buffer.concat(deployOutputBuf).toString("utf-8"));
-    console.log(e.message);
-
-    if (!debug) {
-      console.log(
-        "Retrying deploy with the --debug flag for better error output"
-      );
-      await execWithCredentials(args, projectId, gacFilename, {
-        debug: true,
-        firebaseToolsVersion,
-      });
-    } else {
-      throw e;
+      },
+      env: {
+        ...process.env,
+        FIREBASE_DEPLOY_AGENT: "action-hosting-deploy",
+        GOOGLE_APPLICATION_CREDENTIALS: gacFilename, // the CLI will automatically authenticate with this env variable set
+      },
     }
-  }
+  );
 
   return deployOutputBuf.length
     ? deployOutputBuf[deployOutputBuf.length - 1].toString("utf-8")
